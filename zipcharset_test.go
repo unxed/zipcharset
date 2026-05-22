@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/klauspost/compress/zip"
+	"github.com/unxed/localecp"
 	"golang.org/x/text/encoding/charmap"
 )
 
@@ -24,15 +25,15 @@ func buildUnicodeExtra(raw []byte, utf8Str string) []byte {
 }
 
 func TestDecodeBytes(t *testing.T) {
-	origOEM := OEMDecoder
-	origANSI := ANSIDecoder
+	origOEM := localecp.OEMDecoder
+	origANSI := localecp.ANSIDecoder
 	defer func() {
-		OEMDecoder = origOEM
-		ANSIDecoder = origANSI
+		localecp.OEMDecoder = origOEM
+		localecp.ANSIDecoder = origANSI
 	}()
 
-	OEMDecoder = charmap.CodePage866.NewDecoder()
-	ANSIDecoder = charmap.Windows1251.NewDecoder()
+	localecp.OEMDecoder = charmap.CodePage866.NewDecoder()
+	localecp.ANSIDecoder = charmap.Windows1251.NewDecoder()
 
 	cp866Raw := []byte{0x8f, 0xe0, 0xa8, 0xa2, 0xa5, 0xe2}
 	win1251Raw := []byte{0xcf, 0xf0, 0xe8, 0xe2, 0xe5, 0xf2}
@@ -63,9 +64,9 @@ func TestDecodeBytes(t *testing.T) {
 }
 
 func TestNewNameDecoder(t *testing.T) {
-	origOEM := OEMDecoder
-	defer func() { OEMDecoder = origOEM }()
-	OEMDecoder = charmap.CodePage866.NewDecoder()
+	origOEM := localecp.OEMDecoder
+	defer func() { localecp.OEMDecoder = origOEM }()
+	localecp.OEMDecoder = charmap.CodePage866.NewDecoder()
 
 	cp866Raw := []byte{0x8f, 0xe0, 0xa8, 0xa2, 0xa5, 0xe2}
 	fh := &zip.FileHeader{

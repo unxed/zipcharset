@@ -1,15 +1,19 @@
 # zipcharset
 
-`zipcharset` is a lightweight Go micro-library designed to decode legacy, non-Unicode (non-UTF-8) filenames and comments in ZIP archives, preventing Mojibake (garbled text).
+`zipcharset` is an advanced Go decoder adapter for ZIP archives that resolves legacy, non-Unicode filenames and comments, preventing Mojibake.
 
-It packages a heuristics algorithm adapted from the 7-Zip and far2l projects, matching archive metadata, packing operating systems, and locale-specific codepages.
+It relies on the zero-dependency library `localecp` for system-locale codepage deduction, while layering ZIP-specific heuristics and extra-fields extraction on top.
 
 ## Features
 
-* **Unicode Extra Fields Support:** Extracts and validates the Info-ZIP Unicode Path (`0x7075`) and Unicode Comment (`0x6375`) extra fields.
-* **Smart Heuristics:** Evaluates packing OS (MS-DOS, NTFS, Unix) and packer version headers to select the optimal codepage (OEM vs. ANSI).
-* **Locale-Aware Fallback:** Automatically deduces standard system OEM/ANSI active codepages (e.g. CP866/CP1251 for Russian, CP932 for Japanese) on Unix (via environment variables) and Windows (via API system calls).
-* **Klauspost Compress Integration:** Provides a drop-in callback for `klauspost/compress/zip.ReaderOptions`.
+* **ZIP-Specific Heuristics:** Automatically evaluates packer version, flags, and packing OS metadata to determine if ANSI (Windows) or OEM (DOS) translation should apply.
+* **Unicode Extra Fields Extraction:** Safely parses and validates Info-ZIP Unicode Path (`0x7075`) and Unicode Comment (`0x6375`) structures.
+* **Seamless Integration:** Exposes a simple `zip.ReaderOptions` callback function for the `klauspost/compress/zip` library.
+
+## Dependencies
+
+* `github.com/unxed/localecp` (zero-dependency locale mapping engine)
+* `github.com/klauspost/compress`
 
 ## Installation
 
@@ -18,8 +22,6 @@ go get github.com/unxed/zipcharset
 ```
 
 ## Usage
-
-Integrate `zipcharset` with `github.com/klauspost/compress/zip` during reader initialization:
 
 ```go
 package main
@@ -38,7 +40,6 @@ func main() {
 
 	stat, _ := f.Stat()
 
-	// Initialize the custom name decoder
 	opts := zip.ReaderOptions{
 		NameDecoder: zipcharset.NewNameDecoder(),
 	}
@@ -46,7 +47,6 @@ func main() {
 	zr, _ := zip.NewReaderWithOptions(f, stat.Size(), opts)
 
 	for _, file := range zr.File {
-		// Filenames are now safely decoded to UTF-8
 		fmt.Println(file.Name)
 	}
 }
@@ -54,4 +54,4 @@ func main() {
 
 ## License
 
-This library is licensed under the 3-Clause BSD License.
+Licensed under the 3-Clause BSD License.
