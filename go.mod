@@ -7,5 +7,3 @@ require (
 	github.com/unxed/localecp v0.1.0
 	golang.org/x/text v0.21.0
 )
-
-replace github.com/unxed/localecp => ../localecp
