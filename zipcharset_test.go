@@ -51,6 +51,8 @@ func TestDecodeBytes(t *testing.T) {
 		{"NTFS (ANSI)", win1251Raw, false, creatorNTFS, 20, nil, "Привет"},
 		{"FAT (OEM)", cp866Raw, false, creatorFAT, 10, nil, "Привет"},
 		{"Unicode Extra valid", cp866Raw, false, creatorFAT, 10, buildUnicodeExtra(cp866Raw, "Unicode"), "Unicode"},
+		{"Unix OS (Always UTF-8)", []byte("Привет"), false, creatorUnix, 20, nil, "Привет"},
+		{"Empty Input", []byte{}, false, creatorFAT, 10, nil, ""},
 	}
 
 	for _, tc := range testCases {
@@ -85,5 +87,14 @@ func TestNewNameDecoder(t *testing.T) {
 	}
 	if fh.Flags&0x800 == 0 {
 		t.Error("expected flag 11 to be set")
+	}
+}
+
+func TestParseUnicodeExtraField_Malformed(t *testing.T) {
+	// A truncated extra field that should be safely skipped without panicking
+	malformedExtra := []byte{0x75, 0x70, 0x01, 0x00}
+	res := parseUnicodeExtraField(malformedExtra, unicodePathExtraID, []byte("raw"))
+	if res != "" {
+		t.Errorf("expected empty string for malformed input, got %q", res)
 	}
 }
