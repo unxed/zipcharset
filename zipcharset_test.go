@@ -18,7 +18,7 @@ func buildUnicodeExtra(raw []byte, utf8Str string) []byte {
 	copy(payload[5:], utf8Str)
 
 	extra := make([]byte, 4+len(payload))
-	binary.LittleEndian.PutUint16(extra[0:2], unicodePathExtraID)
+	binary.LittleEndian.PutUint16(extra[0:2], UnicodePathExtraID)
 	binary.LittleEndian.PutUint16(extra[2:4], uint16(len(payload)))
 	copy(extra[4:], payload)
 	return extra
@@ -47,17 +47,17 @@ func TestDecodeBytes(t *testing.T) {
 		extra    []byte
 		expected string
 	}{
-		{"EFS Flag", []byte("Привет"), true, creatorFAT, 20, nil, "Привет"},
-		{"NTFS (ANSI)", win1251Raw, false, creatorNTFS, 20, nil, "Привет"},
-		{"FAT (OEM)", cp866Raw, false, creatorFAT, 10, nil, "Привет"},
-		{"Unicode Extra valid", cp866Raw, false, creatorFAT, 10, buildUnicodeExtra(cp866Raw, "Unicode"), "Unicode"},
-		{"Unix OS (Always UTF-8)", []byte("Привет"), false, creatorUnix, 20, nil, "Привет"},
-		{"Empty Input", []byte{}, false, creatorFAT, 10, nil, ""},
+		{"EFS Flag", []byte("Привет"), true, CreatorFAT, 20, nil, "Привет"},
+		{"NTFS (ANSI)", win1251Raw, false, CreatorNTFS, 20, nil, "Привет"},
+		{"FAT (OEM)", cp866Raw, false, CreatorFAT, 10, nil, "Привет"},
+		{"Unicode Extra valid", cp866Raw, false, CreatorFAT, 10, buildUnicodeExtra(cp866Raw, "Unicode"), "Unicode"},
+		{"Unix OS (Always UTF-8)", []byte("Привет"), false, CreatorUnix, 20, nil, "Привет"},
+		{"Empty Input", []byte{}, false, CreatorFAT, 10, nil, ""},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := decodeBytes(tc.raw, tc.isUTF8, tc.packOS, tc.packVer, tc.extra, false)
+			actual := DecodeText(tc.raw, tc.isUTF8, tc.packOS, tc.packVer, tc.extra, false)
 			if actual != tc.expected {
 				t.Errorf("got %q, want %q", actual, tc.expected)
 			}
@@ -73,7 +73,7 @@ func TestNewNameDecoder(t *testing.T) {
 	cp866Raw := []byte{0x8f, 0xe0, 0xa8, 0xa2, 0xa5, 0xe2}
 	fh := &zip.FileHeader{
 		Name:           string(cp866Raw),
-		CreatorVersion: creatorFAT << 8,
+		CreatorVersion: CreatorFAT << 8,
 	}
 
 	decoder := NewNameDecoder()
@@ -93,7 +93,7 @@ func TestNewNameDecoder(t *testing.T) {
 func TestParseUnicodeExtraField_Malformed(t *testing.T) {
 	// A truncated extra field that should be safely skipped without panicking
 	malformedExtra := []byte{0x75, 0x70, 0x01, 0x00}
-	res := parseUnicodeExtraField(malformedExtra, unicodePathExtraID, []byte("raw"))
+	res := ParseUnicodeExtraField(malformedExtra, UnicodePathExtraID, []byte("raw"))
 	if res != "" {
 		t.Errorf("expected empty string for malformed input, got %q", res)
 	}

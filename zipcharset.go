@@ -11,14 +11,14 @@ import (
 )
 
 const (
-	unicodePathExtraID    = 0x7075
-	unicodeCommentExtraID = 0x6375
+	UnicodePathExtraID    = 0x7075
+	UnicodeCommentExtraID = 0x6375
 
-	creatorFAT    = 0
-	creatorHPFS   = 6
-	creatorNTFS   = 11
-	creatorUnix   = 3
-	creatorMacOSX = 19
+	CreatorFAT    = 0
+	CreatorHPFS   = 6
+	CreatorNTFS   = 11
+	CreatorUnix   = 3
+	CreatorMacOSX = 19
 )
 
 // NewNameDecoder returns an opt-in callback function to rewrite legacy,
@@ -29,8 +29,8 @@ func NewNameDecoder() func(f *zip.FileHeader) error {
 		packOS := byte(f.CreatorVersion >> 8)
 		packVer := f.CreatorVersion & 0xFF
 
-		f.Name = decodeBytes([]byte(f.Name), isUTF8, packOS, packVer, f.Extra, false)
-		f.Comment = decodeBytes([]byte(f.Comment), isUTF8, packOS, packVer, f.Extra, true)
+		f.Name = DecodeText([]byte(f.Name), isUTF8, packOS, packVer, f.Extra, false)
+		f.Comment = DecodeText([]byte(f.Comment), isUTF8, packOS, packVer, f.Extra, true)
 
 		// Set flag 11 so further stdlib parser checks assume UTF-8.
 		f.Flags |= 0x800
@@ -39,32 +39,31 @@ func NewNameDecoder() func(f *zip.FileHeader) error {
 	}
 }
 
-func decodeBytes(raw []byte, isUTF8 bool, packOS byte, packVer uint16, extra []byte, isComment bool) string {
+func DecodeText(raw []byte, isUTF8Flag bool, packOS byte, packVer uint16, extra []byte, isComment bool) string {
 	if len(raw) == 0 {
 		return ""
 	}
 
-	targetID := uint16(unicodePathExtraID)
+	targetID := uint16(UnicodePathExtraID)
 	if isComment {
-		targetID = unicodeCommentExtraID
+		targetID = UnicodeCommentExtraID
 	}
 
-	if unicodeText := parseUnicodeExtraField(extra, targetID, raw); unicodeText != "" {
+	if unicodeText := ParseUnicodeExtraField(extra, targetID, raw); unicodeText != "" {
 		return unicodeText
 	}
 
-	if isUTF8 || packOS == creatorUnix || packOS == creatorMacOSX {
+	if isUTF8Flag || packOS == CreatorUnix || packOS == CreatorMacOSX {
 		return string(raw)
 	}
 
 	var dec *encoding.Decoder
 
-	// Delegate to the pure localecp decoders
-	if packOS == creatorNTFS && packVer >= 20 {
+	if packOS == CreatorNTFS && packVer >= 20 {
 		dec = localecp.ANSIDecoder
-	} else if packOS == creatorFAT && packVer >= 25 && packVer <= 40 {
+	} else if packOS == CreatorFAT && packVer >= 25 && packVer <= 40 {
 		dec = localecp.OEMDecoder
-	} else if packOS == creatorFAT || packOS == creatorHPFS || packOS == creatorNTFS {
+	} else if packOS == CreatorFAT || packOS == CreatorHPFS || packOS == CreatorNTFS {
 		dec = localecp.OEMDecoder
 	} else {
 		dec = localecp.SystemDecoder
@@ -79,7 +78,7 @@ func decodeBytes(raw []byte, isUTF8 bool, packOS byte, packVer uint16, extra []b
 	return string(raw)
 }
 
-func parseUnicodeExtraField(extra []byte, targetID uint16, rawData []byte) string {
+func ParseUnicodeExtraField(extra []byte, targetID uint16, rawData []byte) string {
 	for len(extra) >= 4 {
 		tag := binary.LittleEndian.Uint16(extra[:2])
 		size := binary.LittleEndian.Uint16(extra[2:4])
