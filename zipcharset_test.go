@@ -52,6 +52,7 @@ func TestDecodeBytes(t *testing.T) {
 		{"FAT (OEM)", cp866Raw, false, CreatorFAT, 10, nil, "Привет"},
 		{"Unicode Extra valid", cp866Raw, false, CreatorFAT, 10, buildUnicodeExtra(cp866Raw, "Unicode"), "Unicode"},
 		{"Unix OS (Always UTF-8)", []byte("Привет"), false, CreatorUnix, 20, nil, "Привет"},
+        {"Fallback System Decoder", []byte("hello"), false, 99, 10, nil, "hello"},
 		{"Empty Input", []byte{}, false, CreatorFAT, 10, nil, ""},
 	}
 
@@ -62,6 +63,30 @@ func TestDecodeBytes(t *testing.T) {
 				t.Errorf("got %q, want %q", actual, tc.expected)
 			}
 		})
+	}
+}
+func TestDecodeBytes_Comment(t *testing.T) {
+	origOEM := localecp.OEMDecoder
+	defer func() { localecp.OEMDecoder = origOEM }()
+	localecp.OEMDecoder = charmap.CodePage866.NewDecoder()
+
+	cp866Raw := []byte{0x8f, 0xe0, 0xa8, 0xa2, 0xa5, 0xe2}
+
+	// Create Unicode Extra for Comment (0x6375)
+	crc := crc32.ChecksumIEEE(cp866Raw)
+	payload := make([]byte, 5+len("CommentUnicode"))
+	payload[0] = 1
+	binary.LittleEndian.PutUint32(payload[1:5], crc)
+	copy(payload[5:], "CommentUnicode")
+
+	extra := make([]byte, 4+len(payload))
+	binary.LittleEndian.PutUint16(extra[0:2], UnicodeCommentExtraID)
+	binary.LittleEndian.PutUint16(extra[2:4], uint16(len(payload)))
+	copy(extra[4:], payload)
+
+	actual := DecodeText(cp866Raw, false, CreatorFAT, 10, extra, true)
+	if actual != "CommentUnicode" {
+		t.Errorf("got %q, want 'CommentUnicode'", actual)
 	}
 }
 
@@ -96,5 +121,35 @@ func TestParseUnicodeExtraField_Malformed(t *testing.T) {
 	res := ParseUnicodeExtraField(malformedExtra, UnicodePathExtraID, []byte("raw"))
 	if res != "" {
 		t.Errorf("expected empty string for malformed input, got %q", res)
+	}
+}
+
+func TestParseUnicodeExtraField_SizeOutOfBounds(t *testing.T) {
+	// Extra field array contains a valid first block, but the second block declares an out-of-bounds size
+	extra := []byte{
+		0x00, 0x00, 0x01, 0x00, 0x00,             // Dummy extra block (ID 0, Size 1, Data 1 byte)
+		0x75, 0x70, 0xFF, 0xFF,                   // Target Extra block (ID 0x7075, Size 65535) - out of bounds
+	}
+	res := ParseUnicodeExtraField(extra, UnicodePathExtraID, []byte("raw"))
+	if res != "" {
+		t.Errorf("expected empty string for out-of-bounds size, got %q", res)
+	}
+}
+
+func TestParseUnicodeExtraField_BadCRC(t *testing.T) {
+	utf8Str := "MismatchedCRC"
+	payload := make([]byte, 5+len(utf8Str))
+	payload[0] = 1
+	binary.LittleEndian.PutUint32(payload[1:5], 0xDEADBEEF) // Deliberately bad CRC
+	copy(payload[5:], utf8Str)
+
+	extra := make([]byte, 4+len(payload))
+	binary.LittleEndian.PutUint16(extra[0:2], UnicodePathExtraID)
+	binary.LittleEndian.PutUint16(extra[2:4], uint16(len(payload)))
+	copy(extra[4:], payload)
+
+	res := ParseUnicodeExtraField(extra, UnicodePathExtraID, []byte("some raw data"))
+	if res != "" {
+		t.Errorf("expected empty string for bad CRC, got %q", res)
 	}
 }
