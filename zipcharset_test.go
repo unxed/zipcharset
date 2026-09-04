@@ -52,7 +52,7 @@ func TestDecodeBytes(t *testing.T) {
 		{"FAT (OEM)", cp866Raw, false, CreatorFAT, 10, nil, "Привет"},
 		{"Unicode Extra valid", cp866Raw, false, CreatorFAT, 10, buildUnicodeExtra(cp866Raw, "Unicode"), "Unicode"},
 		{"Unix OS (Always UTF-8)", []byte("Привет"), false, CreatorUnix, 20, nil, "Привет"},
-        {"Fallback System Decoder", []byte("hello"), false, 99, 10, nil, "hello"},
+		{"Fallback System Decoder", []byte("hello"), false, 99, 10, nil, "hello"},
 		{"Empty Input", []byte{}, false, CreatorFAT, 10, nil, ""},
 	}
 
@@ -127,8 +127,8 @@ func TestParseUnicodeExtraField_Malformed(t *testing.T) {
 func TestParseUnicodeExtraField_SizeOutOfBounds(t *testing.T) {
 	// Extra field array contains a valid first block, but the second block declares an out-of-bounds size
 	extra := []byte{
-		0x00, 0x00, 0x01, 0x00, 0x00,             // Dummy extra block (ID 0, Size 1, Data 1 byte)
-		0x75, 0x70, 0xFF, 0xFF,                   // Target Extra block (ID 0x7075, Size 65535) - out of bounds
+		0x00, 0x00, 0x01, 0x00, 0x00, // Dummy extra block (ID 0, Size 1, Data 1 byte)
+		0x75, 0x70, 0xFF, 0xFF, // Target Extra block (ID 0x7075, Size 65535) - out of bounds
 	}
 	res := ParseUnicodeExtraField(extra, UnicodePathExtraID, []byte("raw"))
 	if res != "" {
